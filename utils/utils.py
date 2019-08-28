@@ -9,9 +9,13 @@ def _sigmoid(x):
 
 def makedirs(path):
     try:
+        # 해당 path 의 디렉토리를 생성한다
+        # 디렉토리가 이미 있으면 -> 에러 발생
         os.makedirs(path)
     except OSError:
+        # 그러나 디렉토리가 이미 있는 경우는 에러를 발생시키지 않도록 처리한다
         if not os.path.isdir(path):
+            # 그 외의 오류일 경우 -> 에러를 발생시킨다
             raise
 
 def evaluate(model, 
