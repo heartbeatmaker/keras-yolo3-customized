@@ -1,5 +1,5 @@
 '''
-스크린샷 찍는 코드
+스크린샷 찍는 코드 -- 전체화면 캡쳐가 안됨. 오른쪽, 아래가 짤림
 '''
 
 import numpy as np
@@ -34,12 +34,17 @@ def main():
 
         # 스크린 데이터를 얻는다
         # 계속해서 스크린샷을 찍는다
-        screen =  np.array(ImageGrab.grab(bbox=None))
+        screen =  np.array(ImageGrab.grab())
+        # screen = ImageGrab.grab()
+
+        # 스크린샷을 찍으면 회색빛이 돈다. 원래 컬러로 바꿔줌
+        RGB_img = cv2.cvtColor(screen, cv2.COLOR_BGR2RGB)
 
         # 이미지 저장
-        cv2.imwrite(final_path, np.uint8(screen))
+        cv2.imwrite(final_path, np.uint8(RGB_img))
 
-        time.sleep(2)
+        # n초에 한 번씩 스크린샷을 찍는다
+        time.sleep(0.3)
 
         if cv2.waitKey(25) & 0xFF == ord('q'):
                 cv2.destroyAllWindows()

@@ -2,7 +2,7 @@
 
 
 '''
-웹캠영상, 사진, 동영상에서 object를 찾아 분석하는 코드
+웹캠영상, 사진, 동영상에서 object를 찾아 분석하는 코드 -- 이미지 부분 수정함!!!!
 
 <분석 결과를 도출하는 방식>
 웹캠영상: 실시간
@@ -12,9 +12,12 @@
 import os
 import argparse
 import json
+import shutil
+import time
+
 import cv2
 from utils.utils import get_yolo_boxes, makedirs
-from utils.bbox import draw_boxes
+from utils.bbox import draw_boxes, draw_boxes_for_dogs
 from keras.models import load_model
 
 # tqdm = 커맨드 창에 띄울 수 있는 프로그레스 바
@@ -31,7 +34,7 @@ def _main_(args):
     input_path   = args.input
 
     # 결과물을 저장할 디렉토리
-    output_path  = './output/'
+    output_path  = './predict_output/'
 
 
     # 환경설정 파일을 연다
@@ -60,7 +63,10 @@ def _main_(args):
     #   Set some parameter
     ###############################       
     net_h, net_w = 416, 416 # a multiple of 32, the smaller the faster
-    obj_thresh, nms_thresh = 0.5, 0.45
+
+    # define the probability threshold for detected objects -- 60% 이상의 확실성을 가져야 해당 오브젝트로 인정
+    # nms: non-maximal boxes -- 여러 박스가 중첩되었을 경우, 50% 이상의 확실성을 가져야 중첩 허용
+    obj_thresh, nms_thresh = 0.7, 0.5
 
     ###############################
     #   Load the model -- 이미 학습된 모델을 로드한다. 환경설정에서 모델을 변경할 수 있음
@@ -74,109 +80,18 @@ def _main_(args):
     #   Predict bounding boxes 
     ###############################
 
-    '''웹캠 영상을 분석하는 경우'''
-    if 'webcam' in input_path:
+    # do detection on an image or a set of images
+    '''사진을 분석하는 경우'''
 
-        # do detection on the first webcam
-        video_reader = cv2.VideoCapture(0)
+    while True:
 
-        # the main loop
-        batch_size  = 1 # 1 프레임 단위로 분석한다 -- 이걸 10으로 늘이면 화면이 멈춘다. 왜?
-        images      = []
-        while True:
-            ret_val, frame = video_reader.read()  # 카메라에서 프레임 이미지를 얻는다
-            if ret_val == True: images += [frame]
-
-            if (len(images)==batch_size) or (ret_val==False and len(images)>0):
-
-                # 사진에서 오브젝트를 검출한다
-                batch_boxes = get_yolo_boxes(infer_model, images, net_h, net_w, config['model']['anchors'], obj_thresh, nms_thresh)
-
-                for i in range(len(images)):
-
-                    # 오브젝트 주변에 박스를 그린다
-                    draw_boxes(images[i], batch_boxes[i], config['model']['labels'], obj_thresh)
-
-                    # 사진을 화면에 띄운다
-                    cv2.imshow('video with bboxes', images[i])
-
-                # 변수 초기화
-                images = []
-
-            if cv2.waitKey(1) == 27: 
-                break  # esc to quit
-
-        # 사용자가 esc 키를 누르면 웹캠 화면을 없앤다
-        cv2.destroyAllWindows()
-
-    elif input_path[-4:] == '.mp4': # do detection on a video
-        '''mp4 영상을 분석하는 경우'''
-
-        # 결과물의 이름과 경로를 지정한다
-        # [-1]: 리스트의 맨 마지막 요소
-        video_out = output_path + input_path.split('/')[-1]
-        video_reader = cv2.VideoCapture(input_path)
-
-        # 원본 영상의 총 프레임 수, 프레임당 크기를 가져온다
-        nb_frames = int(video_reader.get(cv2.CAP_PROP_FRAME_COUNT))
-        frame_h = int(video_reader.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        frame_w = int(video_reader.get(cv2.CAP_PROP_FRAME_WIDTH))
-
-        # videoWriter: 비디오를 저장하는 객체
-        # fourcc: 비디오 코덱을 특정하는 4바이트의 코드이다
-        video_writer = cv2.VideoWriter(video_out,  # 비디오 경로
-                               cv2.VideoWriter_fourcc(*'MPEG'),  # 비디오 코덱 -- MPEG 말고 다른걸로 바꾸면 어떻게 됨?
-                               50.0,  # 프레임 수 -- 원래 50이었는데, 20으로 줄이면 어떻게 됨?
-                               (frame_w, frame_h))  # 프레임 크기
-        # the main loop
-        batch_size  = 1
-        images      = []
-        start_point = 0 #%
-        show_window = False
-
-        # tqdm = 커맨드 창에 띄울 수 있는 프로그레스 바. A Fast, Extensible Progress Bar for Python and CLI
-        # 영상의 총 프레임 수만큼 루프를 돌면서, 각각의 프레임에서 오브젝트를 검출한다. 검출된 오브젝트 주변에는 박스표시를 한다
-        # 아래 절차는 웹캠 영상을 처리하는 것과 동일
-        for i in tqdm(range(nb_frames)):
-            _, frame = video_reader.read()  # 영상에서 프레임 이미지를 가져온다
-
-            if (float(i+1)/nb_frames) > start_point/100.:
-                images += [frame]
-
-                if (i%batch_size == 0) or (i == (nb_frames-1) and len(images) > 0):
-                    # predict the bounding boxes
-                    batch_boxes = get_yolo_boxes(infer_model, images, net_h, net_w, config['model']['anchors'], obj_thresh, nms_thresh)
-
-                    for i in range(len(images)):
-                        # draw bounding boxes on the image using labels
-                        draw_boxes(images[i], batch_boxes[i], config['model']['labels'], obj_thresh)   
-
-                        # show the video with detection bounding boxes          
-                        if show_window: cv2.imshow('video with bboxes', images[i])  
-
-                        # write result to the output video
-                        video_writer.write(images[i]) 
-                    images = []
-                if show_window and cv2.waitKey(1) == 27: break  # esc to quit
-
-        if show_window: cv2.destroyAllWindows()
-        video_reader.release()
-        video_writer.release()
-
-
-    else: # do detection on an image or a set of images
-        '''사진을 분석하는 경우'''
         image_paths = []
 
         # input_path 에 file 이름을 넣지 않고 디렉토리까지만 지정했을 경우
         if os.path.isdir(input_path):
-
             # os.listdir : 이 디렉토리에 있는 전체 파일의 이름을 리스트 형태로 반환한다
             for inp_file in os.listdir(input_path):
                 image_paths += [input_path + inp_file]
-
-        else:  # input_path 에 file 이름까지 지정했을 경우
-            image_paths += [input_path]
 
         # 그중에서 jpg, png, jpeg 확장자를 가진 파일만 남긴다
         image_paths = [inp_file for inp_file in image_paths
@@ -185,16 +100,45 @@ def _main_(args):
         # the main loop
         for image_path in image_paths:
             image = cv2.imread(image_path)
-            print(image_path)
 
-            # predict the bounding boxes
+            # predict the bounding boxes -- 검출된 object 박스를 list 형태로 반환한다
             boxes = get_yolo_boxes(infer_model, [image], net_h, net_w, config['model']['anchors'], obj_thresh, nms_thresh)[0]
 
+            print("image path: "+image_path+" /// number of boxes: "+str(len(boxes)))
+
+            labels = config['model']['labels']
+
+            isDog = False
+
+            # 이 사진에서 검출한 박스를 하나씩 검사한다. 조건에 맞는지 확인
+            for box in boxes:
+                for i in range(len(labels)):
+                    if box.classes[i] > obj_thresh and "dog" == labels[i]:  # 60% 이상의 확률로 개인지 확인
+                        print("It's a dog!! " + str(round(box.get_score()*100, 2)) + '%')
+                        isDog = True
+
+            filename = image_path.split('/')[-1]
+
             # draw bounding boxes on the image using labels
-            draw_boxes(image, boxes, config['model']['labels'], obj_thresh) 
-     
-            # write the image with bounding boxes to file
-            cv2.imwrite(output_path + "processed_" + image_path.split('/')[-1], np.uint8(image))
+            if isDog:  # 이 사물이 개라면
+
+                # 사진 위의 개 주변에 박스를 그린다 -- 굳이 안 그려도 됨. 앱 사용자한테 보여줄 사진이기 때문에, 박스처리하지 않음
+                # draw_boxes_for_dogs(image, boxes, config['model']['labels'], obj_thresh)
+
+                # output 폴더에 가공된 사진을 저장한다 -- 가공하지 않았음
+                # write the image with bounding boxes to file
+                # cv2.imwrite(output_path + "processed_" + filename, np.uint8(image))
+
+                # 원본 사진을 output 폴더로 옮긴다
+                shutil.move(image_path, output_path+"detected_"+filename)
+
+            else:
+                print("It's not a dog")
+                # 원본 사진을 originals 폴더로 옮긴다
+                shutil.move(image_path, "./originals/"+filename)
+
+        time.sleep(3)
+
 
 if __name__ == '__main__':
 

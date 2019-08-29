@@ -62,9 +62,9 @@ def draw_boxes(image, boxes, labels, obj_thresh, quiet=True):
         label = -1
         
         for i in range(len(labels)):
-            if box.classes[i] > obj_thresh:
+            if box.classes[i] > obj_thresh:  # 60% 이상의 확률인지 확인
                 if label_str != '': label_str += ', '
-                label_str += (labels[i] + ' ' + str(round(box.get_score()*100, 2)) + '%')
+                label_str += (labels[i] + ' ' + str(round(box.get_score()*100, 2)) + '%')  # ex) dog 99.98%
                 label = i
             if not quiet: print(label_str)
                 
@@ -86,4 +86,42 @@ def draw_boxes(image, boxes, labels, obj_thresh, quiet=True):
                         color=(0,0,0), 
                         thickness=2)
         
-    return image          
+    return image
+
+
+def draw_boxes_for_dogs(image, boxes, labels, obj_thresh, quiet=True):
+    for box in boxes:
+        label_str = ''
+        label = -1
+
+        isDog = False
+
+        for i in range(len(labels)):
+            if box.classes[i] > obj_thresh and "dog" == labels[i]:  # 60% 이상의 확률로 개인지 확인
+
+                score = round(box.get_score()*100, 2)
+                label_str += (labels[i] + ' ' + str(score) + '%')
+                label = i
+                isDog = True
+
+            if not quiet: print(label_str)
+
+        if label >= 0 and isDog:  # 개 주변에만 박스를 그린다
+            text_size = cv2.getTextSize(label_str, cv2.FONT_HERSHEY_SIMPLEX, 1.1e-3 * image.shape[0], 5)
+            width, height = text_size[0][0], text_size[0][1]
+            region = np.array([[box.xmin-3,        box.ymin],
+                               [box.xmin-3,        box.ymin-height-26],
+                               [box.xmin+width+13, box.ymin-height-26],
+                               [box.xmin+width+13, box.ymin]], dtype='int32')
+
+            cv2.rectangle(img=image, pt1=(box.xmin,box.ymin), pt2=(box.xmax,box.ymax), color=get_color(label), thickness=5)
+            cv2.fillPoly(img=image, pts=[region], color=get_color(label))
+            cv2.putText(img=image,
+                        text=label_str,
+                        org=(box.xmin+13, box.ymin - 13),
+                        fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                        fontScale=1e-3 * image.shape[0],
+                        color=(0,0,0),
+                        thickness=2)
+
+    return image
