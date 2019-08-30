@@ -66,7 +66,7 @@ def _main_(args):
 
     # define the probability threshold for detected objects -- 60% 이상의 확실성을 가져야 해당 오브젝트로 인정
     # nms: non-maximal boxes -- 여러 박스가 중첩되었을 경우, 50% 이상의 확실성을 가져야 중첩 허용
-    obj_thresh, nms_thresh = 0.7, 0.5
+    obj_thresh, nms_thresh = 0.6, 0.5
 
     ###############################
     #   Load the model -- 이미 학습된 모델을 로드한다. 환경설정에서 모델을 변경할 수 있음
@@ -123,14 +123,14 @@ def _main_(args):
             if isDog:  # 이 사물이 개라면
 
                 # 사진 위의 개 주변에 박스를 그린다 -- 굳이 안 그려도 됨. 앱 사용자한테 보여줄 사진이기 때문에, 박스처리하지 않음
-                # draw_boxes_for_dogs(image, boxes, config['model']['labels'], obj_thresh)
+                draw_boxes_for_dogs(image, boxes, config['model']['labels'], obj_thresh)
 
                 # output 폴더에 가공된 사진을 저장한다 -- 가공하지 않았음
                 # write the image with bounding boxes to file
-                # cv2.imwrite(output_path + "processed_" + filename, np.uint8(image))
+                cv2.imwrite(output_path + "detected__" + filename, np.uint8(image))
 
-                # 원본 사진을 output 폴더로 옮긴다
-                shutil.move(image_path, output_path+"detected_"+filename)
+                # 원본 사진을 originals 폴더로 옮긴다
+                shutil.move(image_path, "./originals/"+filename)
 
             else:
                 print("It's not a dog")

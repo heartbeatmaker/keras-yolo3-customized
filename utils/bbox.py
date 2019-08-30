@@ -100,7 +100,8 @@ def draw_boxes_for_dogs(image, boxes, labels, obj_thresh, quiet=True):
             if box.classes[i] > obj_thresh and "dog" == labels[i]:  # 60% 이상의 확률로 개인지 확인
 
                 score = round(box.get_score()*100, 2)
-                label_str += (labels[i] + ' ' + str(score) + '%')
+                # label_str += (labels[i] + ' ' + str(score) + '%')  # 박스 위에 표시할 정보: 라벨, 확률
+                label_str += (labels[i])  # 박스 위에 표시할 정보: only 라벨
                 label = i
                 isDog = True
 
