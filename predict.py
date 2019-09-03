@@ -83,6 +83,8 @@ def _main_(args):
     # do detection on an image or a set of images
     '''사진을 분석하는 경우'''
 
+    count = 0
+
     while True:
 
         image_paths = []
@@ -104,38 +106,44 @@ def _main_(args):
             # predict the bounding boxes -- 검출된 object 박스를 list 형태로 반환한다
             boxes = get_yolo_boxes(infer_model, [image], net_h, net_w, config['model']['anchors'], obj_thresh, nms_thresh)[0]
 
-            print("image path: "+image_path+" /// number of boxes: "+str(len(boxes)))
+            if boxes != "error":
 
-            labels = config['model']['labels']
+                print("image path: "+image_path+" /// number of boxes: "+str(len(boxes)))
 
-            isDog = False
+                labels = config['model']['labels']
 
-            # 이 사진에서 검출한 박스를 하나씩 검사한다. 조건에 맞는지 확인
-            for box in boxes:
-                for i in range(len(labels)):
-                    if box.classes[i] > obj_thresh and "dog" == labels[i]:  # 60% 이상의 확률로 개인지 확인
-                        print("It's a dog!! " + str(round(box.get_score()*100, 2)) + '%')
-                        isDog = True
+                isDog = False
 
-            filename = image_path.split('/')[-1]
+                # 이 사진에서 검출한 박스를 하나씩 검사한다. 조건에 맞는지 확인
+                for box in boxes:
+                    for i in range(len(labels)):
+                        if box.classes[i] > obj_thresh and "dog" == labels[i]:  # 60% 이상의 확률로 개인지 확인
+                            print("It's a dog!! " + str(round(box.get_score()*100, 2)) + '%')
+                            isDog = True
 
-            # draw bounding boxes on the image using labels
-            if isDog:  # 이 사물이 개라면
+                filename = image_path.split('/')[-1]
 
-                # 사진 위의 개 주변에 박스를 그린다 -- 굳이 안 그려도 됨. 앱 사용자한테 보여줄 사진이기 때문에, 박스처리하지 않음
-                draw_boxes_for_dogs(image, boxes, config['model']['labels'], obj_thresh)
+                # draw bounding boxes on the image using labels
+                if isDog:  # 이 사물이 개라면
+                    count += 1
+                    print('count = '+ str(count))
+                    # 사진 위의 개 주변에 박스를 그린다 -- 굳이 안 그려도 됨. 앱 사용자한테 보여줄 사진이기 때문에, 박스처리하지 않음
+                    draw_boxes_for_dogs(image, boxes, config['model']['labels'], obj_thresh)
 
-                # output 폴더에 가공된 사진을 저장한다 -- 가공하지 않았음
-                # write the image with bounding boxes to file
-                cv2.imwrite(output_path + "detected__" + filename, np.uint8(image))
+                    # output 폴더에 가공된 사진을 저장한다 -- 가공하지 않았음
+                    # write the image with bounding boxes to file
+                    cv2.imwrite(output_path + "detected__" + filename, np.uint8(image))
 
-                # 원본 사진을 originals 폴더로 옮긴다
-                shutil.move(image_path, "./originals/"+filename)
+                    # 원본 사진을 originals 폴더로 옮긴다
+                    shutil.move(image_path, "./originals/"+filename)
+
+                else:
+                    print("It's not a dog")
+                    # 원본 사진을 originals 폴더로 옮긴다
+                    shutil.move(image_path, "./originals/"+filename)
 
             else:
-                print("It's not a dog")
-                # 원본 사진을 originals 폴더로 옮긴다
-                shutil.move(image_path, "./originals/"+filename)
+                print("box value is null")
 
         time.sleep(3)
 
