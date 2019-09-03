@@ -26,7 +26,9 @@ import numpy as np
 
 def _main_(args):
 
-    '''실행 명령어: python predict.py -c config.json -i 분석할 파일의 경로(웹캠 실행 시: webcam 입력)'''
+    '''실행 명령어: python predict.py -c config.json -i 분석할 파일의 경로(웹캠 실행 시: webcam 입력)'
+    ex) python predict.py -c config.json -i ./screenshot_output/ (이미지의 경우, 폴더 단위로도 실행 가능)
+    '''
     # 환경변수가 저장되어 있는 파일의 경로
     config_path  = args.conf
 
