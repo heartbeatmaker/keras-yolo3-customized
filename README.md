@@ -1,3 +1,6 @@
+개, 고양이, 사람 등 이미지에서 다양한 물체를 검출하는 알고리즘
+
+
 # YOLO3 (Detection, Training, and Evaluation)
 
 ## Dataset and Model
